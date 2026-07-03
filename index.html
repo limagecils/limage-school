@@ -535,6 +535,28 @@
   </div>
 </div>
 
+<!-- ============ MODAL: Profil (1ère connexion) ============ -->
+<div class="modal-overlay" id="modal-profil">
+  <div class="modal" style="max-width:420px;">
+    <h3>Bienvenue !</h3>
+    <div class="field">
+      <label>Ton prénom</label>
+      <input type="text" id="profil-prenom" placeholder="Prénom">
+    </div>
+    <div class="field">
+      <label>Ton rôle</label>
+      <select id="profil-role">
+        <option value="admin">Administratif (dossiers, convocations)</option>
+        <option value="modeles">Organisation des modèles</option>
+        <option value="kits">Kits pédagogiques</option>
+        <option value="formatrice">Formatrice</option>
+      </select>
+    </div>
+    <div id="profil-error" style="color:#B94A4A; font-size:13px; margin-bottom:10px;"></div>
+    <button class="btn btn-primary btn-block" onclick="saveProfil()">Continuer</button>
+  </div>
+</div>
+  
 <!-- ============ MODAL: Mail ============ -->
 <div class="modal-overlay" id="modal-mail">
   <div class="modal">
@@ -562,12 +584,12 @@
    -> Active "Storage" dans la console (pour l'upload des documents)
 ===================================================================== */
 const firebaseConfig = {
-  apiKey: "REMPLACER",
-  authDomain: "REMPLACER.firebaseapp.com",
-  projectId: "REMPLACER",
-  storageBucket: "REMPLACER.appspot.com",
-  messagingSenderId: "REMPLACER",
-  appId: "REMPLACER"
+  apiKey: "AIzaSyCuNLsQpg2ghZnIUJck_53--OE71uCItf0",
+  authDomain: "limage-school.firebaseapp.com",
+  projectId: "limage-school",
+  storageBucket: "limage-school.firebasestorage.app",
+  messagingSenderId: "807351484846",
+  appId: "1:807351484846:web:c8284bf17589d26b06083f"
 };
 
 let USE_FIREBASE = true;
@@ -582,12 +604,7 @@ try{ storage = USE_FIREBASE ? firebase.storage() : null; }catch(e){ storage = nu
 
 /* Table de correspondance email -> prénom / rôle
    A adapter avec les vraies adresses email de l'équipe */
-const TEAM = {
-  "danielle@limagecils.com": {name:"Danielle", role:"admin", tel:"06.61.91.59.29"},
-  "giulia@limagecils.com":   {name:"Giulia",   role:"modeles", tel:"06.10.78.62.50"},
-  "isabelle@limagecils.com": {name:"Isabelle", role:"formatrice", tel:""},
-  "emma@limagecils.com":     {name:"Emma",     role:"kits", tel:"06.13.20.52.60"}
-};
+
 
 const KIT_OPTIONS = [
   "Kit Starter (189€)",
@@ -716,16 +733,52 @@ function doLogout(){
 }
 
 if(USE_FIREBASE){
-  auth.onAuthStateChanged(user => {
-    if(user){
-      currentUser = TEAM[user.email] || {name:user.email.split('@')[0], role:'membre'};
+  let pendingUid = null;
+
+function checkUserProfile(user){
+  if(!USE_FIREBASE || !db){
+    currentUser = {name:'Utilisateur', role:'membre'};
+    showApp(); loadFormations(); loadEleves();
+    return;
+  }
+  db.collection('profils').doc(user.uid).get().then(doc => {
+    if(doc.exists){
+      currentUser = doc.data();
       showApp();
       loadFormations();
       loadEleves();
     } else {
-      showLogin();
+      pendingUid = user.uid;
+      document.getElementById('profil-error').textContent = '';
+      openModal('modal-profil');
     }
   });
+}
+
+function saveProfil(){
+  const prenom = document.getElementById('profil-prenom').value.trim();
+  const role = document.getElementById('profil-role').value;
+  if(!prenom){
+    document.getElementById('profil-error').textContent = 'Merci de renseigner ton prénom.';
+    return;
+  }
+  const data = {name:prenom, role:role};
+  db.collection('profils').doc(pendingUid).set(data).then(() => {
+    currentUser = data;
+    closeModal('modal-profil');
+    showApp();
+    loadFormations();
+    loadEleves();
+  });
+}
+
+auth.onAuthStateChanged(user => {
+  if(user){
+    checkUserProfile(user);
+  } else {
+    showLogin();
+  }
+});
 } else {
   window.addEventListener('DOMContentLoaded', () => {
     const card = document.querySelector('.login-card');
@@ -1442,7 +1495,7 @@ function copyMail(){
 /* Fermeture des modales en cliquant en dehors */
 document.querySelectorAll('.modal-overlay').forEach(ov => {
   ov.addEventListener('click', (ev) => {
-    if(ev.target === ov) ov.classList.remove('open');
+    if(ev.target === ov && ov.id !== 'modal-profil') ov.classList.remove('open');
   });
 });
 </script>
