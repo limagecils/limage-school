@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Limage School — Suivi des dossiers</title>
+
+<!-- Firebase (compat SDK) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --cream:#FBF7F3;
+    --white:#FFFFFF;
+    --rose:#D98CA6;
+    --rose-dark:#B9647F;
+    --rose-pale:#F6E4EA;
+    --charcoal:#2A2521;
+    --taupe:#8C8178;
+    --taupe-pale:#E9E1DC;
+    --sage:#7C9885;
+    --sage-pale:#E4EBE5;
+    --amber:#C99A45;
+    --amber-pale:#F3E9D6;
+    --border:#EAE1DC;
+    --shadow: 0 8px 30px rgba(42,37,33,0.06);
+    --radius: 16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Manrope',sans-serif;
+    background:
+      radial-gradient(circle at 8% 8%, rgba(217,140,166,0.10), transparent 40%),
+      radial-gradient(circle at 95% 15%, rgba(124,152,133,0.08), transparent 35%),
+      var(--cream);
+    color:var(--charcoal);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--rose-pale);}
+
+  /* ---------- Login ---------- */
+  #login-screen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .login-card{
+    background:var(--white);
+    border-radius:24px;
+    box-shadow:var(--shadow);
+    padding:48px 40px;
+    width:100%;
+    max-width:380px;
+    text-align:center;
+    border:1px solid var(--border);
+  }
+  .brand-mark{
+    font-family:'Fraunces',serif;
+    font-optical-sizing:auto;
+    font-weight:600;
+    font-size:30px;
+    color:var(--rose-dark);
+    letter-spacing:0.5px;
+  }
+  .brand-sub{
+    font-size:11px;
+    letter-spacing:4px;
+    color:var(--taupe);
+    text-transform:uppercase;
+    margin-top:2px;
+    margin-bottom:32px;
+  }
+  .field{
+    text-align:left;
+    margin-bottom:16px;
+  }
+  .field label{
+    font-size:12px;
+    font-weight:700;
+    color:var(--taupe);
+    display:block;
+    margin-bottom:6px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+  }
+  input[type=text], input[type=email], input[type=password], input[type=number], input[type=date], input[type=time], select, textarea{
+    width:100%;
+    padding:12px 14px;
+    border-radius:12px;
+    border:1.5px solid var(--border);
+    font-family:'Manrope',sans-serif;
+    font-size:14.5px;
+    background:var(--cream);
+    color:var(--charcoal);
+    transition:border-color .15s ease;
+  }
+  input:focus, select:focus, textarea:focus{
+    outline:none;
+    border-color:var(--rose);
+    background:var(--white);
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    border:none;
+    border-radius:12px;
+    padding:12px 20px;
+    font-family:'Manrope',sans-serif;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+    transition:transform .12s ease, box-shadow .12s ease, background .15s ease;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{background:var(--rose); color:white;}
+  .btn-primary:hover{background:var(--rose-dark);}
+  .btn-ghost{background:transparent; color:var(--charcoal); border:1.5px solid var(--border);}
+  .btn-ghost:hover{border-color:var(--rose);}
+  .btn-sm{padding:8px 14px; font-size:12.5px; border-radius:10px;}
+  .btn-block{width:100%;}
+  #login-error{color:#B94A4A; font-size:13px; margin-top:10px; min-height:16px;}
+
+  /* ---------- App shell ---------- */
+  #app{display:none;}
+  header.topbar{
+    background:var(--white);
+    border-bottom:1px solid var(--border);
+    padding:16px 28px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+    position:sticky;
+    top:0;
+    z-index:20;
+  }
+  .topbar-left{display:flex; align-items:center; gap:14px;}
+  .topbar-left .brand-mark{font-size:22px;}
+  .topbar-left .brand-sub{margin:0; font-size:9.5px; letter-spacing:3px;}
+  .topbar-right{display:flex; align-items:center; gap:10px;}
+  .user-pill{
+    display:flex; align-items:center; gap:10px;
+    background:var(--cream);
+    border:1px solid var(--border);
+    border-radius:999px;
+    padding:6px 14px 6px 6px;
+    font-size:13px;
+    font-weight:700;
+  }
+  .avatar{
+    width:28px;height:28px;border-radius:50%;
+    background:var(--rose);
+    color:white;
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:800;
+  }
+
+  main{padding:24px 28px 60px; max-width:1500px; margin:0 auto;}
+
+  .toolbar{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:20px;
+  }
+  .filters{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+  .filters select, .filters input{width:auto; padding:9px 12px; font-size:13.5px;}
+
+  .layout{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 440px;
+    gap:22px;
+    align-items:start;
+  }
+  @media(max-width:1080px){
+    .layout{grid-template-columns:1fr;}
+  }
+
+  .panel{
+    background:var(--white);
+    border-radius:var(--radius);
+    border:1px solid var(--border);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+
+  table{width:100%; border-collapse:collapse;}
+  thead th{
+    text-align:left;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    color:var(--taupe);
+    padding:14px 16px;
+    border-bottom:1px solid var(--border);
+    background:var(--cream);
+  }
+  tbody td{
+    padding:14px 16px;
+    border-bottom:1px solid var(--border);
+    font-size:14px;
+    vertical-align:middle;
+  }
+  tbody tr{cursor:pointer; transition:background .12s;}
+  tbody tr:hover{background:var(--rose-pale);}
+  tbody tr.active-row{background:var(--rose-pale);}
+  tbody tr:last-child td{border-bottom:none;}
+  .eleve-name{font-weight:800;}
+  .eleve-meta{font-size:12px; color:var(--taupe); margin-top:2px;}
+
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    padding:5px 10px;
+    border-radius:999px;
+    font-size:11.5px;
+    font-weight:800;
+    white-space:nowrap;
+  }
+  .badge-dot{width:6px;height:6px;border-radius:50%;}
+  .b-candidature{background:var(--taupe-pale); color:var(--taupe);}
+  .b-candidature .badge-dot{background:var(--taupe);}
+  .b-dossier{background:var(--amber-pale); color:#8A6A28;}
+  .b-dossier .badge-dot{background:var(--amber);}
+  .b-docs{background:#DCE7F5; color:#3E5C82;}
+  .b-docs .badge-dot{background:#5C82B0;}
+  .b-convoc{background:var(--rose-pale); color:var(--rose-dark);}
+  .b-convoc .badge-dot{background:var(--rose);}
+  .b-complet{background:var(--sage-pale); color:#4C6B54;}
+  .b-complet .badge-dot{background:var(--sage);}
+
+  .empty-state{
+    padding:60px 30px;
+    text-align:center;
+    color:var(--taupe);
+  }
+  .empty-state .icon{font-size:40px; margin-bottom:12px;}
+
+  /* Fiche panel */
+  #fiche-panel{position:sticky; top:88px;}
+  .fiche-header{
+    padding:22px 22px 18px;
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, var(--rose-pale), transparent);
+  }
+  .fiche-header h2{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:24px;
+    margin:0 0 4px;
+  }
+  .fiche-header .fiche-sub{font-size:13px; color:var(--taupe);}
+  .fiche-body{padding:20px 22px; max-height:calc(100vh - 220px); overflow-y:auto;}
+  .fiche-section{margin-bottom:22px;}
+  .fiche-section h3{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.6px;
+    color:var(--taupe);
+    margin:0 0 10px;
+    font-weight:800;
+  }
+  .info-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; font-size:13.5px;}
+  .info-grid .k{color:var(--taupe); font-size:11.5px; margin-bottom:2px;}
+  .info-grid .v{font-weight:700;}
+
+  .stepper{display:flex; flex-direction:column; gap:0;}
+  .step{display:flex; gap:12px; position:relative; padding-bottom:18px;}
+  .step:last-child{padding-bottom:0;}
+  .step-line{
+    width:2px; background:var(--border); position:absolute; left:9px; top:22px; bottom:0;
+  }
+  .step:last-child .step-line{display:none;}
+  .step-dot{
+    width:20px;height:20px;border-radius:50%;
+    background:var(--white); border:2px solid var(--border);
+    flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    font-size:10px; color:var(--taupe); z-index:1; margin-top:1px;
+  }
+  .step.done .step-dot{background:var(--sage); border-color:var(--sage); color:white;}
+  .step.done .step-line{background:var(--sage);}
+  .step-content{flex:1; padding-top:1px;}
+  .step-title{font-size:13.5px; font-weight:800;}
+  .step-date{font-size:11.5px; color:var(--taupe); margin-top:1px;}
+  .step-toggle{margin-top:6px;}
+
+  .check-item{
+    display:flex; flex-direction:column; gap:6px;
+    padding:10px 10px;
+    background:var(--cream); border-radius:10px;
+    margin-bottom:8px;
+  }
+  .check-item.checked{background:var(--sage-pale);}
+  .check-row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .check-row label{display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; cursor:pointer;}
+  .check-row input[type=checkbox]{width:auto; margin:0;}
+  .file-label{
+    display:inline-flex; align-items:center; gap:4px;
+    cursor:pointer; white-space:nowrap;
+  }
+  .doc-link{font-size:12px; color:var(--rose-dark); text-decoration:underline; word-break:break-all;}
+
+  .mail-buttons{display:flex; flex-direction:column; gap:8px;}
+  .mail-btn{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 14px; border-radius:12px;
+    background:var(--cream); border:1.5px solid var(--border);
+    cursor:pointer; font-weight:700; font-size:13.5px;
+    transition:.12s;
+  }
+  .mail-btn:hover{border-color:var(--rose); background:var(--rose-pale);}
+  .mail-btn .who{font-size:11px; color:var(--taupe); font-weight:600;}
+
+  textarea.notes{min-height:80px; resize:vertical; font-size:13.5px;}
+
+  .modele-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:9px 10px; background:var(--cream); border-radius:10px;
+    margin-bottom:6px; font-size:13px;
+  }
+  .modele-add-row{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;}
+  .modele-add-row input{flex:1; min-width:90px;}
+
+  .kit-steps{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(42,37,33,0.45);
+    display:none; align-items:center; justify-content:center;
+    z-index:100; padding:20px;
+    backdrop-filter:blur(2px);
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{
+    background:var(--white); border-radius:20px; padding:28px;
+    width:100%; max-width:640px; max-height:88vh; overflow-y:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,0.2);
+  }
+  .modal h3{
+    font-family:'Fraunces',serif; font-weight:600; font-size:21px; margin:0 0 18px;
+  }
+  .modal-close-row{display:flex; justify-content:flex-end; gap:10px; margin-top:20px;}
+  .mail-preview{
+    background:var(--cream); border:1px solid var(--border); border-radius:12px;
+    padding:16px; font-size:13.5px; white-space:pre-wrap; line-height:1.55;
+    max-height:400px; overflow-y:auto; font-family:'Manrope',sans-serif;
+  }
+  .copy-confirm{font-size:12.5px; color:var(--sage); font-weight:700; margin-left:auto; opacity:0; transition:opacity .2s;}
+  .copy-confirm.show{opacity:1;}
+
+  .form-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  @media(max-width:520px){.form-row{grid-template-columns:1fr;}}
+
+  .fab{
+    position:fixed; bottom:28px; right:28px;
+    background:var(--rose); color:white; border:none;
+    width:56px; height:56px; border-radius:50%;
+    font-size:26px; box-shadow:0 10px 30px rgba(185,100,127,0.4);
+    cursor:pointer; z-index:30; transition:transform .15s;
+  }
+  .fab:hover{transform:scale(1.06); background:var(--rose-dark);}
+
+  .close-x{
+    background:none; border:none; font-size:18px; color:var(--taupe);
+    cursor:pointer; line-height:1; padding:4px;
+  }
+  .close-x:hover{color:#B94A4A;}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="brand-mark">Limage School</div>
+    <div class="brand-sub">Suivi des dossiers</div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="prenom@limagecils.com" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>Mot de passe</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary btn-block" onclick="doLogin()">Se connecter</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <header class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="brand-mark">Limage School</div>
+        <div class="brand-sub">Suivi des dossiers</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-ghost btn-sm" onclick="openModal('modal-formations')">⚙️ Formations</button>
+      <div class="user-pill">
+        <div class="avatar" id="user-avatar">?</div>
+        <span id="user-name">—</span>
+        <button class="btn btn-ghost btn-sm" onclick="doLogout()" style="margin-left:6px;">Déconnexion</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <div class="filters">
+        <select id="filter-mois" onchange="renderTable()">
+          <option value="">Tous les mois</option>
+        </select>
+        <select id="filter-statut" onchange="renderTable()">
+          <option value="">Tous les statuts</option>
+          <option value="candidature">Candidature reçue</option>
+          <option value="dossier">Dossier envoyé</option>
+          <option value="docs">Documents reçus</option>
+          <option value="convocation">Convocation envoyée</option>
+          <option value="complet">Dossier complet</option>
+        </select>
+        <input type="text" id="filter-search" placeholder="Rechercher un nom…" oninput="renderTable()">
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th>Élève</th>
+              <th>Formation</th>
+              <th>Dates</th>
+              <th>Financement</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+        <div id="empty-state" class="empty-state" style="display:none;">
+          <div class="icon">🗂️</div>
+          <div>Aucune élève ne correspond à ces filtres.</div>
+        </div>
+      </div>
+
+      <div class="panel" id="fiche-panel">
+        <div id="fiche-content">
+          <div class="empty-state">
+            <div class="icon">✨</div>
+            <div>Sélectionne une élève dans le tableau<br>pour voir sa fiche.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <button class="fab" onclick="openModal('modal-add')" title="Ajouter une élève">+</button>
+</div>
+
+<!-- ============ MODAL: Ajouter élève ============ -->
+<div class="modal-overlay" id="modal-add">
+  <div class="modal">
+    <h3>Nouvelle candidature</h3>
+    <div class="field"><label>Prénom</label><input type="text" id="f-prenom"></div>
+    <div class="form-row">
+      <div class="field"><label>Nom</label><input type="text" id="f-nom"></div>
+      <div class="field"><label>Ville</label><input type="text" id="f-ville"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Téléphone</label><input type="text" id="f-tel"></div>
+      <div class="field"><label>Email</label><input type="email" id="f-email"></div>
+    </div>
+    <div class="field">
+      <label>Type de formation</label>
+      <select id="f-formation"></select>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Date début formation</label><input type="date" id="f-date-debut"></div>
+      <div class="field"><label>Date fin formation</label><input type="date" id="f-date-fin"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Date début CPF</label><input type="date" id="f-cpf-debut"></div>
+      <div class="field"><label>Date fin CPF</label><input type="date" id="f-cpf-fin"></div>
+    </div>
+    <div class="field"><label>Lieu de formation</label><input type="text" id="f-lieu" value="Aubagne"></div>
+    <div class="form-row">
+      <div class="field">
+        <label>Financement</label>
+        <select id="f-financement">
+          <option value="CPF">CPF</option>
+          <option value="CPF+FCE">CPF + FCE</option>
+          <option value="Perso">Financement personnel</option>
+          <option value="Abondement">Abondement France Travail</option>
+        </select>
+      </div>
+      <div class="field"><label>N° dossier CPF</label><input type="text" id="f-num-cpf"></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea class="notes" id="f-notes" placeholder="Ex : en attente accord abondement…"></textarea></div>
+    <div class="modal-close-row">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveNewEleve()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: Formations ============ -->
+<div class="modal-overlay" id="modal-formations">
+  <div class="modal">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <h3>Gérer les formations</h3>
+      <button class="close-x" onclick="closeModal('modal-formations')">✕</button>
+    </div>
+    <div id="formations-list"></div>
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <input type="text" id="new-formation-input" placeholder="Nouvelle formation…">
+      <button class="btn btn-primary btn-sm" onclick="addFormation()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: Mail ============ -->
+<div class="modal-overlay" id="modal-mail">
+  <div class="modal">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <h3 id="mail-modal-title">Mail</h3>
+      <button class="close-x" onclick="closeModal('modal-mail')">✕</button>
+    </div>
+    <div class="mail-preview" id="mail-preview-text"></div>
+    <div class="modal-close-row">
+      <span class="copy-confirm" id="copy-confirm">Copié ✓</span>
+      <button class="btn btn-ghost" onclick="closeModal('modal-mail')">Fermer</button>
+      <button class="btn btn-primary" onclick="copyMail()">📋 Copier le mail</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIGURATION FIREBASE
+   -> Remplace ces valeurs par celles de TON projet Firebase
+      (Console Firebase > Paramètres du projet > Vos applications)
+   -> Active "Email/Password" dans Authentication > Sign-in method
+   -> Crée les 4 comptes (Danielle, Giulia, Isabelle, Emma) dans
+      Authentication > Users
+   -> Active "Storage" dans la console (pour l'upload des documents)
+===================================================================== */
+const firebaseConfig = {
+  apiKey: "REMPLACER",
+  authDomain: "REMPLACER.firebaseapp.com",
+  projectId: "REMPLACER",
+  storageBucket: "REMPLACER.appspot.com",
+  messagingSenderId: "REMPLACER",
+  appId: "REMPLACER"
+};
+
+let USE_FIREBASE = true;
+try{
+  firebase.initializeApp(firebaseConfig);
+}catch(e){ USE_FIREBASE = false; }
+
+const auth = USE_FIREBASE ? firebase.auth() : null;
+const db = USE_FIREBASE ? firebase.firestore() : null;
+let storage = null;
+try{ storage = USE_FIREBASE ? firebase.storage() : null; }catch(e){ storage = null; }
+
+/* Table de correspondance email -> prénom / rôle
+   A adapter avec les vraies adresses email de l'équipe */
+const TEAM = {
+  "danielle@limagecils.com": {name:"Danielle", role:"admin", tel:"06.61.91.59.29"},
+  "giulia@limagecils.com":   {name:"Giulia",   role:"modeles", tel:"06.10.78.62.50"},
+  "isabelle@limagecils.com": {name:"Isabelle", role:"formatrice", tel:""},
+  "emma@limagecils.com":     {name:"Emma",     role:"kits", tel:"06.13.20.52.60"}
+};
+
+const KIT_OPTIONS = [
+  "Kit Starter (189€)",
+  "Kit Extra (319€) + Kit Lash Up' (62€)",
+  "Kit Coaching Privé 1 jour (79€)",
+  "Kit Coaching Privé 2 jours (129€)",
+  "Kit Lash Lift Coréen (119€)",
+  "Kit Brow Lift (99€)"
+];
+const KIT_STEP_LABELS = {choisi:'Choisi', paye:'Payé', pret:'Prêt'};
+
+let FORMATIONS = [
+  "DEBUTANT (5 jours)",
+  "DEBUTANT EXPRESS (3 jours)",
+  "Coaching Privé (1 jour)",
+  "Coaching Privé (2 jours)",
+  "Perfectionnement (1 jour)",
+  "Lash Lift Coréen",
+  "Brow Lift"
+];
+
+let currentUser = null;
+let eleves = [];
+let selectedEleveId = null;
+
+/* =====================================================================
+   DONNEES DE DEMONSTRATION
+===================================================================== */
+const DEMO_ELEVES = [
+  {
+    id:"demo1",
+    prenom:"Sonia", nom:"Anthoine", ville:"Les Mées (04)",
+    tel:"06.22.58.52.68", email:"sonia.anthoine@gmail.com",
+    formation:"Coaching Privé (2 jours)",
+    dateDebut:"2026-07-16", dateFin:"2026-07-17",
+    cpfDebut:"2026-07-15", cpfFin:"2026-07-17",
+    lieu:"Aubagne",
+    financement:"CPF+FCE", numCpf:"391638688430",
+    notes:"Candidature validée - Dossier accepté le 24/06/2026.",
+    docs:{
+      bulletin:{recu:true, url:null, nom:null},
+      grille:{recu:true, url:null, nom:null},
+      identite:{recu:true, url:null, nom:null},
+      diplomes:{recu:false, url:null, nom:null}
+    },
+    modeles:[{nom:"Camille B.", date:"2026-07-16", heure:"14:30"}],
+    kit:{nom:"Kit Coaching Privé 2 jours (129€)", statut:"choisi"},
+    statuts:{candidature:true, dossier:true, docsComplets:true, convocation:false, modeles:false, kit:false},
+    historique:[
+      {date:"2026-06-20", auteur:"Danielle", action:"Candidature enregistrée"},
+      {date:"2026-06-22", auteur:"Danielle", action:"Mail dossier envoyé"},
+      {date:"2026-06-24", auteur:"Danielle", action:"Documents reçus et validés"}
+    ]
+  },
+  {
+    id:"demo2",
+    prenom:"Mariam", nom:"Camara", ville:"Vitrolles",
+    tel:"07.82.83.92.30", email:"mariameva.ca@gmail.com",
+    formation:"Coaching Privé (2 jours)",
+    dateDebut:"2026-07-08", dateFin:"2026-07-09",
+    cpfDebut:"", cpfFin:"",
+    lieu:"Aubagne",
+    financement:"Perso", numCpf:"",
+    notes:"Acompte 460€ versés. Reste à payer 460€. PROMO appliquée.",
+    docs:{
+      bulletin:{recu:true, url:null, nom:null},
+      grille:{recu:true, url:null, nom:null},
+      identite:{recu:true, url:null, nom:null},
+      diplomes:{recu:false, url:null, nom:null}
+    },
+    modeles:[],
+    kit:{nom:"Kit Coaching Privé 2 jours (129€)", statut:"pret"},
+    statuts:{candidature:true, dossier:true, docsComplets:true, convocation:true, modeles:false, kit:false},
+    historique:[
+      {date:"2026-06-10", auteur:"Danielle", action:"Candidature enregistrée"},
+      {date:"2026-06-29", auteur:"Danielle", action:"Convocation envoyée"}
+    ]
+  },
+  {
+    id:"demo3",
+    prenom:"Céline", nom:"Mariani", ville:"Marseille",
+    tel:"06.29.58.02.03", email:"mariani.celine@hotmail.fr",
+    formation:"DEBUTANT (5 jours)",
+    dateDebut:"2026-07-20", dateFin:"2026-07-24",
+    cpfDebut:"2026-07-22", cpfFin:"2026-07-24",
+    lieu:"Marseille",
+    financement:"CPF", numCpf:"",
+    notes:"En attente accord / Abondement France Travail.",
+    docs:{
+      bulletin:{recu:false, url:null, nom:null},
+      grille:{recu:false, url:null, nom:null},
+      identite:{recu:false, url:null, nom:null},
+      diplomes:{recu:false, url:null, nom:null}
+    },
+    modeles:[],
+    kit:{nom:"", statut:""},
+    statuts:{candidature:true, dossier:false, docsComplets:false, convocation:false, modeles:false, kit:false},
+    historique:[
+      {date:"2026-06-15", auteur:"Danielle", action:"Candidature enregistrée"}
+    ]
+  }
+];
+
+/* =====================================================================
+   AUTH
+===================================================================== */
+function doLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  const errBox = document.getElementById('login-error');
+  errBox.textContent = "";
+
+  if(!USE_FIREBASE){
+    errBox.textContent = "Firebase n'est pas encore configuré — voir le commentaire CONFIGURATION en haut du code.";
+    return;
+  }
+
+  auth.signInWithEmailAndPassword(email, pass)
+    .catch(err => {
+      errBox.textContent = "Identifiants incorrects. Vérifie l'email et le mot de passe.";
+    });
+}
+
+function doLogout(){
+  if(USE_FIREBASE){ auth.signOut(); }
+}
+
+if(USE_FIREBASE){
+  auth.onAuthStateChanged(user => {
+    if(user){
+      currentUser = TEAM[user.email] || {name:user.email.split('@')[0], role:'membre'};
+      showApp();
+      loadFormations();
+      loadEleves();
+    } else {
+      showLogin();
+    }
+  });
+} else {
+  window.addEventListener('DOMContentLoaded', () => {
+    const card = document.querySelector('.login-card');
+    const demoBtn = document.createElement('button');
+    demoBtn.className = 'btn btn-ghost btn-block';
+    demoBtn.style.marginTop = '10px';
+    demoBtn.textContent = "Explorer la démo (sans connexion)";
+    demoBtn.onclick = () => {
+      currentUser = {name:"Emma", role:"kits"};
+      eleves = JSON.parse(JSON.stringify(DEMO_ELEVES));
+      showApp();
+      loadFormations();
+      renderTable();
+      populateMonthFilter();
+    };
+    card.appendChild(demoBtn);
+  });
+}
+
+function showApp(){
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('user-name').textContent = currentUser.name;
+  document.getElementById('user-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
+}
+function showLogin(){
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+/* =====================================================================
+   FORMATIONS (gestion libre)
+===================================================================== */
+function loadFormations(){
+  if(!USE_FIREBASE || !db){
+    renderFormationsModal();
+    populateFormationSelect();
+    return;
+  }
+  db.collection('config').doc('formations').onSnapshot(doc => {
+    if(doc.exists && Array.isArray(doc.data().liste) && doc.data().liste.length){
+      FORMATIONS = doc.data().liste;
+    }
+    renderFormationsModal();
+    populateFormationSelect();
+  }, () => {
+    renderFormationsModal();
+    populateFormationSelect();
+  });
+}
+function saveFormationsList(){
+  if(USE_FIREBASE && db){
+    db.collection('config').doc('formations').set({liste:FORMATIONS});
+  }
+}
+function addFormation(){
+  const input = document.getElementById('new-formation-input');
+  const val = input.value.trim();
+  if(!val) return;
+  if(!FORMATIONS.includes(val)) FORMATIONS.push(val);
+  input.value = '';
+  saveFormationsList();
+  renderFormationsModal();
+  populateFormationSelect();
+}
+function removeFormation(idx){
+  FORMATIONS.splice(idx, 1);
+  saveFormationsList();
+  renderFormationsModal();
+  populateFormationSelect();
+}
+function renderFormationsModal(){
+  const el = document.getElementById('formations-list');
+  if(!el) return;
+  el.innerHTML = FORMATIONS.map((f,i) => `
+    <div class="modele-row">
+      <span>${f}</span>
+      <button class="close-x" onclick="removeFormation(${i})">✕</button>
+    </div>
+  `).join('') || '<div style="font-size:12.5px; color:var(--taupe);">Aucune formation enregistrée.</div>';
+}
+function populateFormationSelect(){
+  const sel = document.getElementById('f-formation');
+  if(!sel) return;
+  const current = sel.value;
+  sel.innerHTML = FORMATIONS.map(f => `<option>${f}</option>`).join('');
+  if(FORMATIONS.includes(current)) sel.value = current;
+}
+
+/* =====================================================================
+   FIRESTORE — ELEVES
+===================================================================== */
+function loadEleves(){
+  if(!USE_FIREBASE) return;
+  db.collection('eleves').orderBy('dateDebut').onSnapshot(snap => {
+    eleves = [];
+    snap.forEach(doc => eleves.push({id:doc.id, ...doc.data()}));
+    if(eleves.length === 0){
+      eleves = JSON.parse(JSON.stringify(DEMO_ELEVES));
+    }
+    renderTable();
+    populateMonthFilter();
+    if(selectedEleveId){
+      const e = eleves.find(x => x.id === selectedEleveId);
+      if(e) renderFiche(e); else clearFiche();
+    }
+  }, err => {
+    console.error(err);
+    eleves = JSON.parse(JSON.stringify(DEMO_ELEVES));
+    renderTable();
+    populateMonthFilter();
+  });
+}
+
+function saveEleve(eleve){
+  if(USE_FIREBASE && db){
+    const {id, ...data} = eleve;
+    if(id && !id.startsWith('demo') && !id.startsWith('e')){
+      db.collection('eleves').doc(id).set(data, {merge:true});
+      return;
+    } else if(id && !id.startsWith('demo')){
+      db.collection('eleves').doc(id).set(data, {merge:true});
+      return;
+    } else {
+      db.collection('eleves').add(data);
+      return;
+    }
+  }
+  const idx = eleves.findIndex(x => x.id === eleve.id);
+  if(idx > -1) eleves[idx] = eleve; else eleves.push(eleve);
+  renderTable();
+  renderFiche(eleve);
+}
+
+/* =====================================================================
+   RENDU TABLEAU
+===================================================================== */
+function populateMonthFilter(){
+  const sel = document.getElementById('filter-mois');
+  const current = sel.value;
+  const months = new Set();
+  eleves.forEach(e => {
+    if(e.dateDebut){
+      const d = new Date(e.dateDebut);
+      months.add(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+    }
+  });
+  sel.innerHTML = '<option value="">Tous les mois</option>';
+  [...months].sort().forEach(m => {
+    const [y,mo] = m.split('-');
+    const label = new Date(y, mo-1, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+    sel.innerHTML += `<option value="${m}">${capitalize(label)}</option>`;
+  });
+  sel.value = current;
+}
+function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+function statutInfo(e){
+  const s = e.statuts || {};
+  if(s.kit && s.modeles && s.convocation) return {key:'complet', label:'Dossier complet', cls:'b-complet'};
+  if(s.convocation) return {key:'convocation', label:'Convocation envoyée', cls:'b-convoc'};
+  if(s.docsComplets) return {key:'docs', label:'Documents reçus', cls:'b-docs'};
+  if(s.dossier) return {key:'dossier', label:'Dossier envoyé', cls:'b-dossier'};
+  return {key:'candidature', label:'Candidature reçue', cls:'b-candidature'};
+}
+
+function renderTable(){
+  const tbody = document.getElementById('table-body');
+  const moisFilter = document.getElementById('filter-mois').value;
+  const statutFilter = document.getElementById('filter-statut').value;
+  const search = document.getElementById('filter-search').value.toLowerCase();
+
+  let filtered = eleves.filter(e => {
+    if(moisFilter){
+      if(!e.dateDebut) return false;
+      const d = new Date(e.dateDebut);
+      const m = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      if(m !== moisFilter) return false;
+    }
+    if(statutFilter && statutInfo(e).key !== statutFilter) return false;
+    if(search){
+      const hay = (e.prenom+' '+e.nom+' '+e.ville).toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a,b) => (a.dateDebut||'').localeCompare(b.dateDebut||''));
+
+  tbody.innerHTML = '';
+  document.getElementById('empty-state').style.display = filtered.length ? 'none' : 'block';
+
+  filtered.forEach(e => {
+    const st = statutInfo(e);
+    const tr = document.createElement('tr');
+    if(e.id === selectedEleveId) tr.classList.add('active-row');
+    tr.onclick = () => { selectedEleveId = e.id; renderTable(); renderFiche(e); };
+    tr.innerHTML = `
+      <td>
+        <div class="eleve-name">${e.prenom} ${e.nom}</div>
+        <div class="eleve-meta">${e.ville||''}</div>
+      </td>
+      <td>${e.formation||''}</td>
+      <td>${formatDateRange(e.dateDebut, e.dateFin)}</td>
+      <td>${e.financement||''}</td>
+      <td><span class="badge ${st.cls}"><span class="badge-dot"></span>${st.label}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function formatDateRange(d1, d2){
+  if(!d1) return '—';
+  const opts = {day:'2-digit', month:'2-digit'};
+  const start = new Date(d1).toLocaleDateString('fr-FR', opts);
+  if(!d2 || d2 === d1) return start;
+  const end = new Date(d2).toLocaleDateString('fr-FR', opts);
+  return `${start} → ${end}`;
+}
+
+/* =====================================================================
+   RENDU FICHE
+===================================================================== */
+function clearFiche(){
+  selectedEleveId = null;
+  document.getElementById('fiche-content').innerHTML = `
+    <div class="empty-state">
+      <div class="icon">✨</div>
+      <div>Sélectionne une élève dans le tableau<br>pour voir sa fiche.</div>
+    </div>`;
+}
+
+function docItemHtml(e, key, label){
+  const doc = (e.docs && e.docs[key]) || {recu:false, url:null, nom:null};
+  return `
+    <div class="check-item ${doc.recu?'checked':''}">
+      <div class="check-row">
+        <label>
+          <input type="checkbox" ${doc.recu?'checked':''} onchange="toggleDocManual('${e.id}','${key}', this.checked)">
+          ${label}
+        </label>
+        <label class="file-label btn btn-ghost btn-sm">
+          📎 Joindre
+          <input type="file" style="display:none" onchange="uploadDoc('${e.id}','${key}', this.files[0])">
+        </label>
+      </div>
+      ${doc.url ? `<a class="doc-link" href="${doc.url}" target="_blank">📄 ${doc.nom || 'Voir le fichier'}</a>` : ''}
+    </div>`;
+}
+
+function renderFiche(e){
+  const s = e.statuts || {};
+
+  const steps = [
+    {key:'candidature', label:'Candidature reçue', done:!!s.candidature},
+    {key:'dossier', label:'Dossier envoyé', done:!!s.dossier},
+    {key:'docsComplets', label:'Documents reçus', done:!!s.docsComplets},
+    {key:'convocation', label:'Convocation envoyée', done:!!s.convocation},
+    {key:'modeles', label:'Modèles organisés (Giulia)', done:!!s.modeles},
+    {key:'kit', label:'Kit présenté (Emma)', done:!!s.kit},
+  ];
+
+  const stepperHtml = steps.map(st => `
+    <div class="step ${st.done?'done':''}">
+      <div style="position:relative;">
+        <div class="step-dot">${st.done?'✓':''}</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-title">${st.label}</div>
+        <label class="step-toggle" style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--taupe); cursor:pointer;">
+          <input type="checkbox" ${st.done?'checked':''} onchange="toggleStatut('${e.id}','${st.key}', this.checked)">
+          marquer comme fait
+        </label>
+      </div>
+    </div>
+  `).join('');
+
+  const checklistHtml =
+    docItemHtml(e, 'bulletin', 'Bulletin de candidature') +
+    docItemHtml(e, 'grille', 'Grille analyse des besoins') +
+    docItemHtml(e, 'identite', "Pièce d'identité") +
+    docItemHtml(e, 'diplomes', 'Diplômes / attestations');
+
+  const modeles = e.modeles || [];
+  const modelesHtml = modeles.length
+    ? modeles.map((m,i) => `
+        <div class="modele-row">
+          <span><strong>${m.nom}</strong>${m.date ? ' — '+formatDateRange(m.date) : ''}${m.heure ? ' à '+m.heure : ''}</span>
+          <button class="close-x" onclick="removeModele('${e.id}', ${i})">✕</button>
+        </div>`).join('')
+    : '<div style="font-size:12.5px; color:var(--taupe);">Aucun modèle enregistré.</div>';
+
+  const kit = e.kit || {nom:'', statut:''};
+  const kitOptionsHtml = KIT_OPTIONS.map(k => `<option value="${k}" ${kit.nom===k?'selected':''}>${k}</option>`).join('');
+  const kitStepsHtml = Object.keys(KIT_STEP_LABELS).map(st => `
+    <button class="btn btn-sm ${kit.statut===st?'btn-primary':'btn-ghost'}" onclick="updateKitField('${e.id}','statut','${st}')">${KIT_STEP_LABELS[st]}</button>
+  `).join('');
+
+  const historiqueHtml = (e.historique||[]).slice().reverse().map(h => `
+    <div style="font-size:12.5px; padding:6px 0; border-bottom:1px dashed var(--border);">
+      <strong>${h.auteur}</strong> — ${h.action}
+      <div style="color:var(--taupe); font-size:11px;">${formatDateRange(h.date)}</div>
+    </div>
+  `).join('') || '<div style="font-size:12.5px; color:var(--taupe);">Aucun historique pour le moment.</div>';
+
+  document.getElementById('fiche-content').innerHTML = `
+    <div class="fiche-header">
+      <h2>${e.prenom} ${e.nom}</h2>
+      <div class="fiche-sub">${e.formation||''} · ${formatDateRange(e.dateDebut, e.dateFin)}</div>
+    </div>
+    <div class="fiche-body">
+
+      <div class="fiche-section">
+        <h3>Coordonnées</h3>
+        <div class="info-grid">
+          <div><div class="k">Téléphone</div><div class="v">${e.tel||'—'}</div></div>
+          <div><div class="k">Email</div><div class="v">${e.email||'—'}</div></div>
+          <div><div class="k">Ville</div><div class="v">${e.ville||'—'}</div></div>
+          <div><div class="k">Lieu de formation</div><div class="v">${e.lieu||'—'}</div></div>
+        </div>
+      </div>
+
+      <div class="fiche-section">
+        <h3>Financement</h3>
+        <div class="info-grid">
+          <div><div class="k">Type</div><div class="v">${e.financement||'—'}</div></div>
+          <div><div class="k">N° dossier CPF</div><div class="v">${e.numCpf||'—'}</div></div>
+          <div><div class="k">Dates CPF</div><div class="v">${formatDateRange(e.cpfDebut, e.cpfFin)}</div></div>
+        </div>
+      </div>
+
+      <div class="fiche-section">
+        <h3>Dossier — documents</h3>
+        ${checklistHtml}
+      </div>
+
+      <div class="fiche-section">
+        <h3>Modèles de pratique (Giulia)</h3>
+        <div id="modeles-list-${e.id}">${modelesHtml}</div>
+        <div class="modele-add-row">
+          <input type="text" id="modele-nom-${e.id}" placeholder="Nom du modèle">
+          <input type="date" id="modele-date-${e.id}">
+          <input type="time" id="modele-heure-${e.id}">
+          <button class="btn btn-primary btn-sm" onclick="addModele('${e.id}')">+ Ajouter</button>
+        </div>
+      </div>
+
+      <div class="fiche-section">
+        <h3>Kit pédagogique (Emma)</h3>
+        <select onchange="updateKitField('${e.id}','nom', this.value)">
+          <option value="">— Choisir un kit —</option>
+          ${kitOptionsHtml}
+        </select>
+        <div class="kit-steps">${kitStepsHtml}</div>
+      </div>
+
+      <div class="fiche-section">
+        <h3>Étapes du dossier</h3>
+        <div class="stepper">${stepperHtml}</div>
+      </div>
+
+      <div class="fiche-section">
+        <h3>Mails à générer</h3>
+        <div class="mail-buttons">
+          <div class="mail-btn" onclick="openMail('${e.id}','dossier')">
+            <span>📩 Mail dossier d'inscription</span>
+            <span class="who">Danielle</span>
+          </div>
+          <div class="mail-btn" onclick="openMail('${e.id}','convocation')">
+            <span>📩 Convocation</span>
+            <span class="who">Danielle</span>
+          </div>
+          <div class="mail-btn" onclick="openMail('${e.id}','kit')">
+            <span>📩 Mail kit pédagogique</span>
+            <span class="who">Emma</span>
+          </div>
+          <div class="mail-btn" onclick="openMail('${e.id}','modeles')">
+            <span>📩 Mail organisation modèles</span>
+            <span class="who">Giulia</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fiche-section">
+        <h3>Notes</h3>
+        <textarea class="notes" onblur="updateNotes('${e.id}', this.value)" placeholder="Notes libres…">${e.notes||''}</textarea>
+      </div>
+
+      <div class="fiche-section">
+        <h3>Historique</h3>
+        ${historiqueHtml}
+      </div>
+
+    </div>
+  `;
+}
+
+function toggleStatut(id, key, val){
+  const e = eleves.find(x => x.id === id);
+  if(!e) return;
+  e.statuts = e.statuts || {};
+  e.statuts[key] = val;
+  e.historique = e.historique || [];
+  e.historique.push({date:new Date().toISOString().slice(0,10), auteur:currentUser.name, action:(val?'Étape validée : ':'Étape annulée : ')+key});
+  saveEleve(e);
+  renderTable();
+}
+
+function toggleDocManual(id, key, val){
+  const e = eleves.find(x => x.id === id);
+  if(!e) return;
+  e.docs = e.docs || {};
+  e.docs[key] = e.docs[key] || {recu:false, url:null, nom:null};
+  e.docs[key].recu = val;
+  refreshDocsComplets(e);
+  saveEleve(e);
+  renderTable();
+}
+
+function refreshDocsComplets(e){
+  const allDocs = ['bulletin','grille','identite'].every(k => e.docs && e.docs[k] && e.docs[k].recu);
+  e.statuts = e.statuts || {};
+  e.statuts.docsComplets = allDocs;
+}
+
+function uploadDoc(eleveId, key, file){
+  const e = eleves.find(x => x.id === eleveId);
+  if(!e || !file) return;
+
+  const finish = (url) => {
+    e.docs = e.docs || {};
+    e.docs[key] = {recu:true, url, nom:file.name};
+    refreshDocsComplets(e);
+    e.historique = e.historique || [];
+    e.historique.push({date:new Date().toISOString().slice(0,10), auteur:currentUser.name, action:'Document ajouté : '+key});
+    saveEleve(e);
+    renderTable();
+    renderFiche(e);
+  };
+
+  if(USE_FIREBASE && storage){
+    const path = `eleves/${eleveId}/${key}_${Date.now()}_${file.name}`;
+    storage.ref().child(path).put(file)
+      .then(snap => snap.ref.getDownloadURL())
+      .then(finish)
+      .catch(err => alert("Erreur lors de l'envoi du fichier : " + err.message));
+  } else {
+    // Mode démo / Storage non configuré : aperçu local temporaire (non persistant)
+    finish(URL.createObjectURL(file));
+  }
+}
+
+function updateNotes(id, val){
+  const e = eleves.find(x => x.id === id);
+  if(!e) return;
+  e.notes = val;
+  saveEleve(e);
+}
+
+/* =====================================================================
+   MODELES
+===================================================================== */
+function addModele(id){
+  const e = eleves.find(x => x.id === id);
+  if(!e) return;
+  const nom = document.getElementById('modele-nom-'+id).value.trim();
+  const date = document.getElementById('modele-date-'+id).value;
+  const heure = document.getElementById('modele-heure-'+id).value;
+  if(!nom){ alert('Merci de renseigner le nom du modèle.'); return; }
+  e.modeles = e.modeles || [];
+  e.modeles.push({nom, date, heure});
+  saveEleve(e);
+  renderFiche(e);
+}
+function removeModele(id, idx){
+  const e = eleves.find(x => x.id === id);
+  if(!e) return;
+  e.modeles.splice(idx, 1);
+  saveEleve(e);
+  renderFiche(e);
+}
+
+/* =====================================================================
+   KIT
+===================================================================== */
+function updateKitField(id, field, value){
+  const e = eleves.find(x => x.id === id);
+  if(!e) return;
+  e.kit = e.kit || {nom:'', statut:''};
+  e.kit[field] = value;
+  saveEleve(e);
+  renderFiche(e);
+}
+
+/* =====================================================================
+   AJOUT ELEVE
+===================================================================== */
+function closeModal(id){
+  document.getElementById(id).classList.remove('open');
+}
+function openModal(id){
+  document.getElementById(id).classList.add('open');
+}
+function saveNewEleve(){
+  const e = {
+    id: 'e' + Date.now(),
+    prenom: document.getElementById('f-prenom').value.trim(),
+    nom: document.getElementById('f-nom').value.trim(),
+    ville: document.getElementById('f-ville').value.trim(),
+    tel: document.getElementById('f-tel').value.trim(),
+    email: document.getElementById('f-email').value.trim(),
+    formation: document.getElementById('f-formation').value,
+    dateDebut: document.getElementById('f-date-debut').value,
+    dateFin: document.getElementById('f-date-fin').value,
+    cpfDebut: document.getElementById('f-cpf-debut').value,
+    cpfFin: document.getElementById('f-cpf-fin').value,
+    lieu: document.getElementById('f-lieu').value.trim(),
+    financement: document.getElementById('f-financement').value,
+    numCpf: document.getElementById('f-num-cpf').value.trim(),
+    notes: document.getElementById('f-notes').value.trim(),
+    docs:{
+      bulletin:{recu:false, url:null, nom:null},
+      grille:{recu:false, url:null, nom:null},
+      identite:{recu:false, url:null, nom:null},
+      diplomes:{recu:false, url:null, nom:null}
+    },
+    modeles:[],
+    kit:{nom:'', statut:''},
+    statuts:{candidature:true, dossier:false, docsComplets:false, convocation:false, modeles:false, kit:false},
+    historique:[{date:new Date().toISOString().slice(0,10), auteur:currentUser.name, action:'Candidature enregistrée'}]
+  };
+  if(!e.prenom || !e.nom){ alert('Merci de renseigner au moins le prénom et le nom.'); return; }
+  saveEleve(e);
+  closeModal('modal-add');
+  selectedEleveId = e.id;
+  setTimeout(() => renderFiche(e), 200);
+  document.querySelectorAll('#modal-add input, #modal-add textarea').forEach(i => i.value = '');
+}
+
+/* =====================================================================
+   GENERATION DES MAILS
+===================================================================== */
+function frDateCourt(iso){
+  if(!iso) return '';
+  return new Date(iso).toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+function jourSemaine(iso){
+  if(!iso) return '';
+  return capitalize(new Date(iso).toLocaleDateString('fr-FR', {weekday:'long'}));
+}
+
+function mailDossier(e){
+  return `Bonjour ${e.prenom},
+
+Nous vous remercions pour votre inscription à la session de formation ci-dessus référencée et pour la confiance que vous nous témoignez.
+Dans le cadre de la constitution de votre dossier d'inscription Limage School, nous vous prions de bien vouloir trouver, ci-joint :
+- bulletin de candidature,
+- grille analyse besoins en formation.
+Nous vous remercions de bien vouloir nous retourner ces documents dûment complétés et signés par vos soins.
+Egalement, SVP pourriez-vous nous adresser, avec ces imprimés, une copie :
+- soit de votre carte d'identité recto/verso, 
+- soit de votre passeport, 
+  en cours de validité ?
+Enfin, si vous disposez de diplômes ou attestations de formation en esthétique, pourriez-vous nous transmettre une copie de ce ou ces derniers ?
+Nous restons disponibles pour toute question ou information.
+Dans l'attente de votre retour dont nous vous remercions par avance,
+Bien à vous.
+P/O Isabelle Limage
+Limage School
+V/Contact Administratif : 
+Danielle - 06.61.91.59.29
+V/Contacts Techniques : 
+. Giulia -  06.10.78.62.50 (Gestion planning rendez-vous modèles/exercices) 
+. Emma - 06.13.20.52.60 (Conseil sélection kits & vente)`;
+}
+
+function mailConvocation(e){
+  return `Bonjour ${e.prenom},
+
+Votre formation, citée en référence, approche à grands pas.
+Nous vous prions de bien vouloir trouver, ci-joint, votre convocation.
+Vous êtes la bienvenue : ${jourSemaine(e.dateDebut)} ${frDateCourt(e.dateDebut)} !
+Isabelle vous attend avec impatience.
+Bien à vous.
+P/O Isabelle Limage
+Limage School
+V/Contact administratif : Danielle - 06.61.91.59.29
+V/Contacts techniques :         Giulia -  06.10.78.62.50 (Planning modèles)
+                                        Emma - 06.13.20.52.60 (Kit(s) pédagogique(s))
+
+---
+(Pense à joindre le PDF de convocation avec les horaires détaillés,
+le lieu et le planning d'entraînement pour ${e.prenom}.)`;
+}
+
+function mailKit(e){
+  const kitLine = (e.kit && e.kit.nom) ? `\n(Kit envisagé pour cette élève : ${e.kit.nom})\n` : '';
+  if(e.financement === 'Perso'){
+    return `Objet : Votre formation approche – informations importantes 🎓
+
+Bonjour ${e.prenom},
+Votre formation approche à grands pas, et nous nous réjouissons de vous accueillir !
+Voici quelques informations essentielles pour préparer votre session dans les meilleures conditions :
+
+1. Votre kit pédagogique offert 🎁
+Bonne nouvelle : dans le cadre d'un financement personnel, votre kit pédagogique vous est offert !
+Il sera remis directement le jour de votre formation. Ce kit est conçu pour vous accompagner dans les meilleures conditions et reste bien sûr votre propriété à l'issue de la session.
+Découvrez son contenu ci-dessous :
+[Insérer l'image du kit correspondant à la formation]
+${kitLine}
+2. Pause déjeuner
+Le petit-déjeuner et le goûter sont offerts par la Limage School.
+Merci de prévoir votre propre déjeuner (un espace restauration avec réfrigérateur est mis à votre disposition).
+
+Nous comptons sur votre sérieux et votre implication pour le bon déroulement de votre formation.
+Merci de nous confirmer, dans les plus brefs délais, la bonne prise en compte de ces informations.
+À très bientôt !
+Emma – Limagecils Team`;
+  }
+  return `Objet : Votre formation approche – informations importantes 🎓
+
+Bonjour ${e.prenom},
+Votre formation approche à grands pas, et nous nous réjouissons de vous accueillir !
+Voici quelques informations essentielles pour préparer votre session dans les meilleures conditions :
+
+1. Kit pédagogique obligatoire
+Dans le cadre d'un financement CPF, l'achat d'un kit pédagogique est obligatoire. Ce kit reste votre propriété à l'issue de la formation.
+Selon la formation à laquelle vous êtes inscrite :
+• Formation 5 jours extensions de cils → Kit Starter (189€) ou Kit Extra (319€) + Kit Lash Up' (62€)
+• Coaching Privé 1 jour → Kit Coaching Privé 1 jour (79€)
+• Coaching Privé 2 jours → Kit Coaching Privé 2 jours (129€)
+• Formation Lash Lift Coréen → Kit Lash Lift Coréen (119€)
+• Formation Brow Lift → Kit Brow Lift (99€)
+[Insérer l'image des kits]
+${kitLine}
+Afin de préparer votre matériel à temps, merci de nous confirmer votre choix de kit au plus tard une semaine avant le début de votre formation.
+
+2. Pause déjeuner
+Le petit-déjeuner et le goûter sont offerts par la Limage School.
+Merci de prévoir votre propre déjeuner (un espace restauration avec réfrigérateur est mis à votre disposition).
+
+Nous comptons sur votre sérieux et votre implication pour respecter ces consignes.
+Merci de nous confirmer, dans les plus brefs délais, la bonne prise en compte de ces informations.
+À très bientôt !
+Emma – Limagecils Team`;
+}
+
+function mailModeles(e){
+  const modeles = e.modeles || [];
+  const bullets = modeles.length
+    ? modeles.map(m => `- ${m.nom}${m.date ? ' — '+frDateCourt(m.date) : ''}${m.heure ? ' à '+m.heure : ''}`).join('\n')
+    : '- \n- \n- \n- ';
+  return `Bonjour ${e.prenom},
+
+Votre formation approche à grands pas, et nous nous réjouissons de vous accueillir 😍
+⚠️ Nous attirons toutefois votre attention sur les points suivants, essentiels au bon déroulement de la session :
+
+Modèles pour la pratique — Vous devez impérativement prévoir :
+${bullets}
+
+Il est de votre responsabilité de vous organiser afin de garantir leur présence aux horaires indiqués. Cette organisation a été mise en place pour assurer le bon déroulement de votre session.
+Si vous ne trouvez pas de modèles, merci de nous prévenir au minimum 72 heures avant la formation afin que nous puissions nous organiser de notre côté. Si vous ne résidez pas à Marseille, nous pourrons vous aider à en trouver — pas d'inquiétude 😉
+
+Nous comptons sur votre sérieux et votre implication pour respecter ces consignes. Merci de nous confirmer la bonne prise en compte de ces éléments dans les plus brefs délais.
+Cordialement, Giulia, LIMAGECILS TEAM 💓`;
+}
+
+const MAIL_TITLES = {
+  dossier:"Mail — Dossier d'inscription",
+  convocation:"Mail — Convocation",
+  kit:"Mail — Kit pédagogique",
+  modeles:"Mail — Organisation des modèles"
+};
+const MAIL_STATUS_KEY = {
+  dossier:"dossier",
+  convocation:"convocation",
+  kit:"kit",
+  modeles:"modeles"
+};
+
+let currentMailEleveId = null;
+
+function openMail(eleveId, type){
+  const e = eleves.find(x => x.id === eleveId);
+  if(!e) return;
+  currentMailEleveId = eleveId;
+  document.getElementById('mail-modal-title').textContent = MAIL_TITLES[type];
+  let text = '';
+  if(type === 'dossier') text = mailDossier(e);
+  if(type === 'convocation') text = mailConvocation(e);
+  if(type === 'kit') text = mailKit(e);
+  if(type === 'modeles') text = mailModeles(e);
+  document.getElementById('mail-preview-text').textContent = text;
+  document.getElementById('mail-preview-text').dataset.type = type;
+  document.getElementById('copy-confirm').classList.remove('show');
+  openModal('modal-mail');
+}
+
+function copyMail(){
+  const text = document.getElementById('mail-preview-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    document.getElementById('copy-confirm').classList.add('show');
+    const type = document.getElementById('mail-preview-text').dataset.type;
+    const key = MAIL_STATUS_KEY[type];
+    if(currentMailEleveId && key){
+      toggleStatut(currentMailEleveId, key, true);
+      const e = eleves.find(x => x.id === currentMailEleveId);
+      if(e) renderFiche(e);
+    }
+  });
+}
+
+/* Fermeture des modales en cliquant en dehors */
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', (ev) => {
+    if(ev.target === ov) ov.classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>
