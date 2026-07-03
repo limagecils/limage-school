@@ -759,12 +759,13 @@ function checkUserProfile(user){
     showApp(); loadFormations(); loadEleves(); loadKits();
     return;
   }
-  db.collection('profils').doc(user.uid).get().then(doc => {
+db.collection('profils').doc(user.uid).get().then(doc => {
     if(doc.exists){
       currentUser = doc.data();
       showApp();
       loadFormations();
       loadEleves();
+      loadKits();
     } else {
       pendingUid = user.uid;
       document.getElementById('profil-error').textContent = '';
