@@ -381,6 +381,16 @@
     cursor:pointer; line-height:1; padding:4px;
   }
   .close-x:hover{color:#B94A4A;}
+  .linear-progress{display:flex; align-items:center; padding:0 22px; margin:16px 0 6px;}
+.lp-step{display:flex; flex-direction:column; align-items:center; gap:4px; flex:0 0 auto;}
+.lp-dot{width:22px;height:22px;border-radius:50%;background:var(--white);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--taupe);flex-shrink:0;}
+.lp-step.done .lp-dot{background:var(--sage);border-color:var(--sage);color:white;}
+.lp-label{font-size:9px;color:var(--taupe);text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap;}
+.lp-line{flex:1 1 auto;height:2px;background:var(--border);margin:0 2px 16px;}
+.lp-line.done{background:var(--sage);}
+.tabs{display:flex; gap:16px; padding:0 22px; border-bottom:1px solid var(--border); margin-top:4px;}
+.tab-btn{background:none;border:none;padding:10px 2px;font-size:13px;font-weight:800;color:var(--taupe);cursor:pointer;border-bottom:2px solid transparent;}
+.tab-btn.active{color:var(--rose-dark); border-bottom-color:var(--rose);}
 </style>
 </head>
 <body>
@@ -647,6 +657,12 @@ let FORMATIONS = [
 let currentUser = null;
 let eleves = [];
 let selectedEleveId = null;
+let currentTab = 'admin';
+function setTab(id, tab){
+  currentTab = tab;
+  const e = eleves.find(x => x.id === id);
+  if(e) renderFiche(e);
+}
 
 /* =====================================================================
    DONNEES DE DEMONSTRATION
@@ -1031,7 +1047,7 @@ function renderTable(){
     const st = statutInfo(e);
     const tr = document.createElement('tr');
     if(e.id === selectedEleveId) tr.classList.add('active-row');
-    tr.onclick = () => { selectedEleveId = e.id; renderTable(); renderFiche(e); };
+    tr.onclick = () => { selectedEleveId = e.id; currentTab = 'admin'; renderTable(); renderFiche(e); };
     tr.innerHTML = `
       <td>
         <div class="eleve-name">${e.prenom} ${e.nom}</div>
@@ -1087,17 +1103,34 @@ function docItemHtml(e, key, label){
 
 function renderFiche(e){
   const s = e.statuts || {};
+  const kit = e.kit || {nom:'', statut:''};
+  const isPerso = e.financement === 'Perso';
 
-  const steps = [
+  /* ---- Avancement linéaire ---- */
+  const lpSteps = [
+    {label:'Candidat.', done:!!s.candidature},
+    {label:'Dossier', done:!!s.dossier},
+    {label:'Docs', done:!!s.docsComplets},
+    {label:'Convoc.', done:!!s.convocation},
+    {label:'Kit', done: kit.statut === 'pret'},
+    {label:'Modèles', done: (e.modeles||[]).length > 0}
+  ];
+  const lpHtml = lpSteps.map((st,i) => `
+    <div class="lp-step ${st.done?'done':''}">
+      <div class="lp-dot">${st.done?'✓':''}</div>
+      <div class="lp-label">${st.label}</div>
+    </div>
+    ${i < lpSteps.length-1 ? `<div class="lp-line ${st.done?'done':''}"></div>` : ''}
+  `).join('');
+
+  /* ---- Onglet Administratif ---- */
+  const adminSteps = [
     {key:'candidature', label:'Candidature reçue', done:!!s.candidature},
     {key:'dossier', label:'Dossier envoyé', done:!!s.dossier},
     {key:'docsComplets', label:'Documents reçus', done:!!s.docsComplets},
     {key:'convocation', label:'Convocation envoyée', done:!!s.convocation},
-    {key:'modeles', label:'Modèles organisés (Giulia)', done:!!s.modeles},
-    {key:'kit', label:'Kit présenté (Emma)', done:!!s.kit},
   ];
-
-  const stepperHtml = steps.map(st => `
+  const adminStepperHtml = adminSteps.map(st => `
     <div class="step ${st.done?'done':''}">
       <div style="position:relative;">
         <div class="step-dot">${st.done?'✓':''}</div>
@@ -1119,6 +1152,94 @@ function renderFiche(e){
     docItemHtml(e, 'identite', "Pièce d'identité") +
     docItemHtml(e, 'diplomes', 'Diplômes / attestations');
 
+  const historiqueHtml = (e.historique||[]).slice().reverse().map(h => `
+    <div style="font-size:12.5px; padding:6px 0; border-bottom:1px dashed var(--border);">
+      <strong>${h.auteur}</strong> — ${h.action}
+      <div style="color:var(--taupe); font-size:11px;">${formatDateRange(h.date)}</div>
+    </div>
+  `).join('') || '<div style="font-size:12.5px; color:var(--taupe);">Aucun historique pour le moment.</div>';
+
+  const adminTabHtml = `
+    <div class="fiche-section">
+      <h3>Coordonnées</h3>
+      <div class="info-grid">
+        <div><div class="k">Téléphone</div><div class="v">${e.tel||'—'}</div></div>
+        <div><div class="k">Email</div><div class="v">${e.email||'—'}</div></div>
+        <div><div class="k">Ville</div><div class="v">${e.ville||'—'}</div></div>
+        <div><div class="k">Lieu de formation</div><div class="v">${e.lieu||'—'}</div></div>
+      </div>
+    </div>
+    <div class="fiche-section">
+      <h3>Financement</h3>
+      <div class="info-grid">
+        <div><div class="k">Type</div><div class="v">${e.financement||'—'}</div></div>
+        ${!isPerso ? `
+          <div><div class="k">N° dossier CPF</div><div class="v">${e.numCpf||'—'}</div></div>
+          <div><div class="k">Dates CPF</div><div class="v">${formatDateRange(e.cpfDebut, e.cpfFin)}</div></div>
+        ` : ''}
+      </div>
+    </div>
+    <div class="fiche-section">
+      <h3>Dossier — documents</h3>
+      ${checklistHtml}
+    </div>
+    <div class="fiche-section">
+      <h3>Étapes administratives</h3>
+      <div class="stepper">${adminStepperHtml}</div>
+    </div>
+    <div class="fiche-section">
+      <h3>Mails</h3>
+      <div class="mail-buttons">
+        <div class="mail-btn" onclick="openMail('${e.id}','dossier')"><span>📩 Dossier d'inscription</span><span class="who">Danielle</span></div>
+        <div class="mail-btn" onclick="openMail('${e.id}','convocation')"><span>📩 Convocation</span><span class="who">Danielle</span></div>
+      </div>
+    </div>
+    <div class="fiche-section">
+      <h3>Notes</h3>
+      <textarea class="notes" onblur="updateNotes('${e.id}', this.value)" placeholder="Notes libres…">${e.notes||''}</textarea>
+    </div>
+    <div class="fiche-section">
+      <h3>Historique</h3>
+      ${historiqueHtml}
+    </div>
+  `;
+
+  /* ---- Onglet Kits ---- */
+  const kitChecklistItems = getKitChecklist(e);
+  const kitTabHtml = `
+    <div class="fiche-section">
+      <h3>Kit sélectionné</h3>
+      <select onchange="updateKitField('${e.id}','nom', this.value)">
+        <option value="">— Choisir un kit —</option>
+        ${KIT_ITEMS.map(k => `<option value="${k.nom}" ${kit.nom===k.nom?'selected':''}>${k.nom}</option>`).join('')}
+      </select>
+      <div class="kit-steps">
+        <button class="btn btn-sm ${kit.statut==='choisi'?'btn-primary':'btn-ghost'}" onclick="updateKitField('${e.id}','statut','choisi')">Choisi</button>
+        <button class="btn btn-sm ${kit.statut==='paye'?'btn-primary':'btn-ghost'}" onclick="updateKitField('${e.id}','statut','paye')">Payé</button>
+        <span class="badge ${kit.statut==='pret'?'b-complet':'b-candidature'}"><span class="badge-dot"></span>${kit.statut==='pret'?'Prêt ✓':'Pas encore prêt'}</span>
+      </div>
+    </div>
+    ${kit.nom ? `
+      <div class="fiche-section">
+        <h3>Checklist de préparation</h3>
+        <div class="checklist">
+          ${kitChecklistItems.length ? kitChecklistItems.map((it, idx) => `
+            <label class="check-item ${it.checked?'checked':''}" style="flex-direction:row; align-items:center; cursor:pointer;">
+              <input type="checkbox" ${it.checked?'checked':''} onchange="toggleKitCheckItem('${e.id}', ${idx}, this.checked)">
+              ${it.label}
+            </label>
+          `).join('') : '<div style="font-size:12.5px; color:var(--taupe);">Ce kit n\\'a pas encore de contenu détaillé (à ajouter dans ⚙️ Kits).</div>'}
+        </div>
+      </div>` : ''}
+    <div class="fiche-section">
+      <h3>Mail</h3>
+      <div class="mail-buttons">
+        <div class="mail-btn" onclick="openMail('${e.id}','kit')"><span>📩 Mail kit pédagogique</span><span class="who">Emma</span></div>
+      </div>
+    </div>
+  `;
+
+  /* ---- Onglet Modèles ---- */
   const modeles = e.modeles || [];
   const modelesHtml = modeles.length
     ? modeles.map((m,i) => `
@@ -1128,109 +1249,64 @@ function renderFiche(e){
         </div>`).join('')
     : '<div style="font-size:12.5px; color:var(--taupe);">Aucun modèle enregistré.</div>';
 
-  const kit = e.kit || {nom:'', statut:''};
-const kitOptionsHtml = KIT_ITEMS.map(k => `<option value="${k.nom}" ${kit.nom===k.nom?'selected':''}>${k.nom}</option>`).join('');
-const kitSelected = KIT_ITEMS.find(k => k.nom === kit.nom);
-  const kitStepsHtml = Object.keys(KIT_STEP_LABELS).map(st => `
-    <button class="btn btn-sm ${kit.statut===st?'btn-primary':'btn-ghost'}" onclick="updateKitField('${e.id}','statut','${st}')">${KIT_STEP_LABELS[st]}</button>
-  `).join('');
-
-  const historiqueHtml = (e.historique||[]).slice().reverse().map(h => `
-    <div style="font-size:12.5px; padding:6px 0; border-bottom:1px dashed var(--border);">
-      <strong>${h.auteur}</strong> — ${h.action}
-      <div style="color:var(--taupe); font-size:11px;">${formatDateRange(h.date)}</div>
+  const modelesTabHtml = `
+    <div class="fiche-section">
+      <h3>Modèles de pratique</h3>
+      <div id="modeles-list-${e.id}">${modelesHtml}</div>
+      <div class="modele-add-row">
+        <input type="text" id="modele-nom-${e.id}" placeholder="Nom du modèle">
+        <input type="date" id="modele-date-${e.id}">
+        <input type="time" id="modele-heure-${e.id}">
+        <button class="btn btn-primary btn-sm" onclick="addModele('${e.id}')">+ Ajouter</button>
+      </div>
     </div>
-  `).join('') || '<div style="font-size:12.5px; color:var(--taupe);">Aucun historique pour le moment.</div>';
+    <div class="fiche-section">
+      <h3>Mail</h3>
+      <div class="mail-buttons">
+        <div class="mail-btn" onclick="openMail('${e.id}','modeles')"><span>📩 Mail organisation modèles</span><span class="who">Giulia</span></div>
+      </div>
+    </div>
+  `;
+
+  /* ---- Onglet Formation (récap) ---- */
+  const formationTabHtml = `
+    <div class="fiche-section">
+      <h3>Formation</h3>
+      <div class="info-grid">
+        <div><div class="k">Type</div><div class="v">${e.formation||'—'}</div></div>
+        <div><div class="k">Dates</div><div class="v">${formatDateRange(e.dateDebut, e.dateFin)}</div></div>
+        <div><div class="k">Lieu</div><div class="v">${e.lieu||'—'}</div></div>
+      </div>
+    </div>
+    <div class="fiche-section">
+      <h3>Kit choisi</h3>
+      <div style="font-size:13.5px; font-weight:700;">${kit.nom || 'Aucun kit sélectionné pour le moment.'}</div>
+    </div>
+    <div class="fiche-section">
+      <h3>Modèles prévus</h3>
+      ${modelesHtml}
+    </div>
+  `;
+
+  const tabHtml = currentTab === 'admin' ? adminTabHtml
+    : currentTab === 'kits' ? kitTabHtml
+    : currentTab === 'modeles' ? modelesTabHtml
+    : formationTabHtml;
 
   document.getElementById('fiche-content').innerHTML = `
     <div class="fiche-header">
       <h2>${e.prenom} ${e.nom}</h2>
       <div class="fiche-sub">${e.formation||''} · ${formatDateRange(e.dateDebut, e.dateFin)}</div>
     </div>
+    <div class="linear-progress">${lpHtml}</div>
+    <div class="tabs">
+      <button class="tab-btn ${currentTab==='admin'?'active':''}" onclick="setTab('${e.id}','admin')">Administratif</button>
+      <button class="tab-btn ${currentTab==='kits'?'active':''}" onclick="setTab('${e.id}','kits')">Kits</button>
+      <button class="tab-btn ${currentTab==='modeles'?'active':''}" onclick="setTab('${e.id}','modeles')">Modèles</button>
+      <button class="tab-btn ${currentTab==='formation'?'active':''}" onclick="setTab('${e.id}','formation')">Formation</button>
+    </div>
     <div class="fiche-body">
-
-      <div class="fiche-section">
-        <h3>Coordonnées</h3>
-        <div class="info-grid">
-          <div><div class="k">Téléphone</div><div class="v">${e.tel||'—'}</div></div>
-          <div><div class="k">Email</div><div class="v">${e.email||'—'}</div></div>
-          <div><div class="k">Ville</div><div class="v">${e.ville||'—'}</div></div>
-          <div><div class="k">Lieu de formation</div><div class="v">${e.lieu||'—'}</div></div>
-        </div>
-      </div>
-
-      <div class="fiche-section">
-        <h3>Financement</h3>
-        <div class="info-grid">
-          <div><div class="k">Type</div><div class="v">${e.financement||'—'}</div></div>
-          <div><div class="k">N° dossier CPF</div><div class="v">${e.numCpf||'—'}</div></div>
-          <div><div class="k">Dates CPF</div><div class="v">${formatDateRange(e.cpfDebut, e.cpfFin)}</div></div>
-        </div>
-      </div>
-
-      <div class="fiche-section">
-        <h3>Dossier — documents</h3>
-        ${checklistHtml}
-      </div>
-
-      <div class="fiche-section">
-        <h3>Modèles de pratique (Giulia)</h3>
-        <div id="modeles-list-${e.id}">${modelesHtml}</div>
-        <div class="modele-add-row">
-          <input type="text" id="modele-nom-${e.id}" placeholder="Nom du modèle">
-          <input type="date" id="modele-date-${e.id}">
-          <input type="time" id="modele-heure-${e.id}">
-          <button class="btn btn-primary btn-sm" onclick="addModele('${e.id}')">+ Ajouter</button>
-        </div>
-      </div>
-
-      <div class="fiche-section">
-        <h3>Kit pédagogique (Emma)</h3>
-        <select onchange="updateKitField('${e.id}','nom', this.value)">
-          <option value="">— Choisir un kit —</option>
-          ${kitOptionsHtml}
-        </select>
-        ${kitSelected && kitSelected.contenu ? `<div style="font-size:12.5px; color:var(--taupe); white-space:pre-wrap; margin-top:8px; background:var(--cream); padding:10px; border-radius:10px;">${kitSelected.contenu}</div>` : ''}
-        <div class="kit-steps">${kitStepsHtml}</div>
-      </div>
-
-      <div class="fiche-section">
-        <h3>Étapes du dossier</h3>
-        <div class="stepper">${stepperHtml}</div>
-      </div>
-
-      <div class="fiche-section">
-        <h3>Mails à générer</h3>
-        <div class="mail-buttons">
-          <div class="mail-btn" onclick="openMail('${e.id}','dossier')">
-            <span>📩 Mail dossier d'inscription</span>
-            <span class="who">Danielle</span>
-          </div>
-          <div class="mail-btn" onclick="openMail('${e.id}','convocation')">
-            <span>📩 Convocation</span>
-            <span class="who">Danielle</span>
-          </div>
-          <div class="mail-btn" onclick="openMail('${e.id}','kit')">
-            <span>📩 Mail kit pédagogique</span>
-            <span class="who">Emma</span>
-          </div>
-          <div class="mail-btn" onclick="openMail('${e.id}','modeles')">
-            <span>📩 Mail organisation modèles</span>
-            <span class="who">Giulia</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="fiche-section">
-        <h3>Notes</h3>
-        <textarea class="notes" onblur="updateNotes('${e.id}', this.value)" placeholder="Notes libres…">${e.notes||''}</textarea>
-      </div>
-
-      <div class="fiche-section">
-        <h3>Historique</h3>
-        ${historiqueHtml}
-      </div>
-
+      ${tabHtml}
     </div>
   `;
 }
@@ -1328,6 +1404,30 @@ function updateKitField(id, field, value){
   if(!e) return;
   e.kit = e.kit || {nom:'', statut:''};
   e.kit[field] = value;
+  saveEleve(e);
+  renderFiche(e);
+}
+
+function getKitChecklist(e){
+  const kit = e.kit || {nom:'', statut:''};
+  if(!kit.nom) return [];
+  const kitDef = KIT_ITEMS.find(k => k.nom === kit.nom);
+  const lines = (kitDef && kitDef.contenu) ? kitDef.contenu.split('\n').map(l => l.trim()).filter(Boolean) : [];
+  e.kitChecklist = e.kitChecklist || {};
+  if(!e.kitChecklist[kit.nom] || e.kitChecklist[kit.nom].length !== lines.length){
+    e.kitChecklist[kit.nom] = lines.map(() => false);
+  }
+  return lines.map((label, i) => ({label, checked: e.kitChecklist[kit.nom][i]}));
+}
+
+function toggleKitCheckItem(id, idx, val){
+  const e = eleves.find(x => x.id === id);
+  if(!e || !e.kit || !e.kit.nom) return;
+  e.kitChecklist = e.kitChecklist || {};
+  e.kitChecklist[e.kit.nom] = e.kitChecklist[e.kit.nom] || [];
+  e.kitChecklist[e.kit.nom][idx] = val;
+  const allChecked = e.kitChecklist[e.kit.nom].length > 0 && e.kitChecklist[e.kit.nom].every(Boolean);
+  e.kit.statut = allChecked ? 'pret' : (e.kit.statut === 'pret' ? 'paye' : e.kit.statut);
   saveEleve(e);
   renderFiche(e);
 }
