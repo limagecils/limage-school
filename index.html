@@ -414,6 +414,7 @@
     </div>
     <div class="topbar-right">
       <button class="btn btn-ghost btn-sm" onclick="openModal('modal-formations')">⚙️ Formations</button>
+      <button class="btn btn-ghost btn-sm" onclick="openModal('modal-kits')">⚙️ Kits</button>
       <div class="user-pill">
         <div class="avatar" id="user-avatar">?</div>
         <span id="user-name">—</span>
@@ -535,6 +536,22 @@
   </div>
 </div>
 
+<!-- ============ MODAL: Kits ============ -->
+<div class="modal-overlay" id="modal-kits">
+  <div class="modal">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <h3>Gérer les kits</h3>
+      <button class="close-x" onclick="closeModal('modal-kits')">✕</button>
+    </div>
+    <div id="kits-list"></div>
+    <div style="margin-top:14px;">
+      <input type="text" id="new-kit-nom" placeholder="Nom du kit (ex : Kit Starter (189€))" style="margin-bottom:8px;">
+      <textarea id="new-kit-contenu" placeholder="Contenu du kit, un élément par ligne…" style="min-height:70px;"></textarea>
+      <button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="addKit()">Ajouter le kit</button>
+    </div>
+  </div>
+</div>
+  
 <!-- ============ MODAL: Profil (1ère connexion) ============ -->
 <div class="modal-overlay" id="modal-profil">
   <div class="modal" style="max-width:420px;">
@@ -606,13 +623,13 @@ try{ storage = USE_FIREBASE ? firebase.storage() : null; }catch(e){ storage = nu
    A adapter avec les vraies adresses email de l'équipe */
 
 
-const KIT_OPTIONS = [
-  "Kit Starter (189€)",
-  "Kit Extra (319€) + Kit Lash Up' (62€)",
-  "Kit Coaching Privé 1 jour (79€)",
-  "Kit Coaching Privé 2 jours (129€)",
-  "Kit Lash Lift Coréen (119€)",
-  "Kit Brow Lift (99€)"
+let KIT_ITEMS = [
+  {nom:"Kit Starter (189€)", contenu:""},
+  {nom:"Kit Extra (319€) + Kit Lash Up' (62€)", contenu:""},
+  {nom:"Kit Coaching Privé 1 jour (79€)", contenu:""},
+  {nom:"Kit Coaching Privé 2 jours (129€)", contenu:""},
+  {nom:"Kit Lash Lift Coréen (119€)", contenu:""},
+  {nom:"Kit Brow Lift (99€)", contenu:""}
 ];
 const KIT_STEP_LABELS = {choisi:'Choisi', paye:'Payé', pret:'Prêt'};
 
@@ -738,7 +755,7 @@ if(USE_FIREBASE){
 function checkUserProfile(user){
   if(!USE_FIREBASE || !db){
     currentUser = {name:'Utilisateur', role:'membre'};
-    showApp(); loadFormations(); loadEleves();
+    showApp(); loadFormations(); loadEleves(); loadKits();
     return;
   }
   db.collection('profils').doc(user.uid).get().then(doc => {
@@ -769,6 +786,7 @@ function saveProfil(){
     showApp();
     loadFormations();
     loadEleves();
+    loadKits();
   });
 }
 
@@ -868,6 +886,48 @@ function populateFormationSelect(){
   if(FORMATIONS.includes(current)) sel.value = current;
 }
 
+function loadKits(){
+  if(!USE_FIREBASE || !db){ renderKitsModal(); return; }
+  db.collection('config').doc('kits').onSnapshot(doc => {
+    if(doc.exists && Array.isArray(doc.data().liste) && doc.data().liste.length){
+      KIT_ITEMS = doc.data().liste;
+    }
+    renderKitsModal();
+  }, () => renderKitsModal());
+}
+function saveKitsList(){
+  if(USE_FIREBASE && db){ db.collection('config').doc('kits').set({liste:KIT_ITEMS}); }
+}
+function addKit(){
+  const nomInput = document.getElementById('new-kit-nom');
+  const contenuInput = document.getElementById('new-kit-contenu');
+  const nom = nomInput.value.trim();
+  const contenu = contenuInput.value.trim();
+  if(!nom) return;
+  KIT_ITEMS.push({nom, contenu});
+  nomInput.value = ''; contenuInput.value = '';
+  saveKitsList();
+  renderKitsModal();
+}
+function removeKit(idx){
+  KIT_ITEMS.splice(idx, 1);
+  saveKitsList();
+  renderKitsModal();
+}
+function renderKitsModal(){
+  const el = document.getElementById('kits-list');
+  if(!el) return;
+  el.innerHTML = KIT_ITEMS.map((k,i) => `
+    <div class="modele-row" style="flex-direction:column; align-items:stretch; gap:4px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong>${k.nom}</strong>
+        <button class="close-x" onclick="removeKit(${i})">✕</button>
+      </div>
+      ${k.contenu ? `<div style="font-size:12px; color:var(--taupe); white-space:pre-wrap;">${k.contenu}</div>` : ''}
+    </div>
+  `).join('') || '<div style="font-size:12.5px; color:var(--taupe);">Aucun kit enregistré.</div>';
+}
+
 /* =====================================================================
    FIRESTORE — ELEVES
 ===================================================================== */
@@ -876,9 +936,6 @@ function loadEleves(){
   db.collection('eleves').orderBy('dateDebut').onSnapshot(snap => {
     eleves = [];
     snap.forEach(doc => eleves.push({id:doc.id, ...doc.data()}));
-    if(eleves.length === 0){
-      eleves = JSON.parse(JSON.stringify(DEMO_ELEVES));
-    }
     renderTable();
     populateMonthFilter();
     if(selectedEleveId){
@@ -887,9 +944,6 @@ function loadEleves(){
     }
   }, err => {
     console.error(err);
-    eleves = JSON.parse(JSON.stringify(DEMO_ELEVES));
-    renderTable();
-    populateMonthFilter();
   });
 }
 
@@ -1073,7 +1127,8 @@ function renderFiche(e){
     : '<div style="font-size:12.5px; color:var(--taupe);">Aucun modèle enregistré.</div>';
 
   const kit = e.kit || {nom:'', statut:''};
-  const kitOptionsHtml = KIT_OPTIONS.map(k => `<option value="${k}" ${kit.nom===k?'selected':''}>${k}</option>`).join('');
+const kitOptionsHtml = KIT_ITEMS.map(k => `<option value="${k.nom}" ${kit.nom===k.nom?'selected':''}>${k.nom}</option>`).join('');
+const kitSelected = KIT_ITEMS.find(k => k.nom === kit.nom);
   const kitStepsHtml = Object.keys(KIT_STEP_LABELS).map(st => `
     <button class="btn btn-sm ${kit.statut===st?'btn-primary':'btn-ghost'}" onclick="updateKitField('${e.id}','statut','${st}')">${KIT_STEP_LABELS[st]}</button>
   `).join('');
@@ -1133,6 +1188,7 @@ function renderFiche(e){
           <option value="">— Choisir un kit —</option>
           ${kitOptionsHtml}
         </select>
+        ${kitSelected && kitSelected.contenu ? `<div style="font-size:12.5px; color:var(--taupe); white-space:pre-wrap; margin-top:8px; background:var(--cream); padding:10px; border-radius:10px;">${kitSelected.contenu}</div>` : ''}
         <div class="kit-steps">${kitStepsHtml}</div>
       </div>
 
