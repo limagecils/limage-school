@@ -584,6 +584,51 @@
     <button class="btn btn-primary btn-block" onclick="saveProfil()">Continuer</button>
   </div>
 </div>
+
+<!-- ============ MODAL: Modifier élève ============ -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal">
+    <h3>Modifier la fiche</h3>
+    <div class="field"><label>Prénom</label><input type="text" id="ed-prenom"></div>
+    <div class="form-row">
+      <div class="field"><label>Nom</label><input type="text" id="ed-nom"></div>
+      <div class="field"><label>Ville</label><input type="text" id="ed-ville"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Téléphone</label><input type="text" id="ed-tel"></div>
+      <div class="field"><label>Email</label><input type="email" id="ed-email"></div>
+    </div>
+    <div class="field">
+      <label>Type de formation</label>
+      <select id="ed-formation"></select>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Date début formation</label><input type="date" id="ed-date-debut"></div>
+      <div class="field"><label>Date fin formation</label><input type="date" id="ed-date-fin"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Date début CPF</label><input type="date" id="ed-cpf-debut"></div>
+      <div class="field"><label>Date fin CPF</label><input type="date" id="ed-cpf-fin"></div>
+    </div>
+    <div class="field"><label>Lieu de formation</label><input type="text" id="ed-lieu"></div>
+    <div class="form-row">
+      <div class="field">
+        <label>Financement</label>
+        <select id="ed-financement">
+          <option value="CPF">CPF</option>
+          <option value="CPF+FCE">CPF + FCE</option>
+          <option value="Perso">Financement personnel</option>
+          <option value="Abondement">Abondement France Travail</option>
+        </select>
+      </div>
+      <div class="field"><label>N° dossier CPF</label><input type="text" id="ed-num-cpf"></div>
+    </div>
+    <div class="modal-close-row">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveEditEleve()">Enregistrer</button>
+    </div>
+  </div>
+</div>
   
 <!-- ============ MODAL: Mail ============ -->
 <div class="modal-overlay" id="modal-mail">
@@ -591,6 +636,12 @@
     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
       <h3 id="mail-modal-title">Mail</h3>
       <button class="close-x" onclick="closeModal('modal-mail')">✕</button>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; font-size:13px; flex-wrap:wrap;">
+      <span style="color:var(--taupe);">Destinataire :</span>
+      <strong id="mail-dest-email">—</strong>
+      <button class="btn btn-ghost btn-sm" onclick="copyEmail()">📋 Copier l'email</button>
+      <span class="copy-confirm" id="copy-email-confirm">Copié ✓</span>
     </div>
     <div class="mail-preview" id="mail-preview-text"></div>
     <div class="modal-close-row">
@@ -1295,9 +1346,12 @@ function renderFiche(e){
     : formationTabHtml;
 
   document.getElementById('fiche-content').innerHTML = `
-    <div class="fiche-header">
-      <h2>${e.prenom} ${e.nom}</h2>
-      <div class="fiche-sub">${e.formation||''} · ${formatDateRange(e.dateDebut, e.dateFin)}</div>
+    <div class="fiche-header" style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+      <div>
+        <h2>${e.prenom} ${e.nom}</h2>
+        <div class="fiche-sub">${e.formation||''} · ${formatDateRange(e.dateDebut, e.dateFin)}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="openEditEleve('${e.id}')">✏️ Modifier</button>
     </div>
     <div class="linear-progress">${lpHtml}</div>
     <div class="tabs">
@@ -1436,7 +1490,51 @@ function toggleKitCheckItem(id, idx, val){
 /* =====================================================================
    AJOUT ELEVE
 ===================================================================== */
-function closeModal(id){
+
+  let editingEleveId = null;
+function openEditEleve(id){
+  const e = eleves.find(x => x.id === id);
+  if(!e) return;
+  editingEleveId = id;
+  document.getElementById('ed-prenom').value = e.prenom || '';
+  document.getElementById('ed-nom').value = e.nom || '';
+  document.getElementById('ed-ville').value = e.ville || '';
+  document.getElementById('ed-tel').value = e.tel || '';
+  document.getElementById('ed-email').value = e.email || '';
+  document.getElementById('ed-formation').innerHTML = FORMATIONS.map(f => `<option ${f===e.formation?'selected':''}>${f}</option>`).join('');
+  document.getElementById('ed-date-debut').value = e.dateDebut || '';
+  document.getElementById('ed-date-fin').value = e.dateFin || '';
+  document.getElementById('ed-cpf-debut').value = e.cpfDebut || '';
+  document.getElementById('ed-cpf-fin').value = e.cpfFin || '';
+  document.getElementById('ed-lieu').value = e.lieu || '';
+  document.getElementById('ed-financement').value = e.financement || 'CPF';
+  document.getElementById('ed-num-cpf').value = e.numCpf || '';
+  openModal('modal-edit');
+}
+function saveEditEleve(){
+  const e = eleves.find(x => x.id === editingEleveId);
+  if(!e) return;
+  e.prenom = document.getElementById('ed-prenom').value.trim();
+  e.nom = document.getElementById('ed-nom').value.trim();
+  e.ville = document.getElementById('ed-ville').value.trim();
+  e.tel = document.getElementById('ed-tel').value.trim();
+  e.email = document.getElementById('ed-email').value.trim();
+  e.formation = document.getElementById('ed-formation').value;
+  e.dateDebut = document.getElementById('ed-date-debut').value;
+  e.dateFin = document.getElementById('ed-date-fin').value;
+  e.cpfDebut = document.getElementById('ed-cpf-debut').value;
+  e.cpfFin = document.getElementById('ed-cpf-fin').value;
+  e.lieu = document.getElementById('ed-lieu').value.trim();
+  e.financement = document.getElementById('ed-financement').value;
+  e.numCpf = document.getElementById('ed-num-cpf').value.trim();
+  e.historique = e.historique || [];
+  e.historique.push({date:new Date().toISOString().slice(0,10), auteur:currentUser.name, action:'Fiche modifiée'});
+  saveEleve(e);
+  closeModal('modal-edit');
+  renderFiche(e);
+}
+  
+  function closeModal(id){
   document.getElementById(id).classList.remove('open');
 }
 function openModal(id){
@@ -1626,6 +1724,8 @@ function openMail(eleveId, type){
   if(!e) return;
   currentMailEleveId = eleveId;
   document.getElementById('mail-modal-title').textContent = MAIL_TITLES[type];
+  document.getElementById('mail-dest-email').textContent = e.email || '—';
+  document.getElementById('copy-email-confirm').classList.remove('show');
   let text = '';
   if(type === 'dossier') text = mailDossier(e);
   if(type === 'convocation') text = mailConvocation(e);
@@ -1635,6 +1735,16 @@ function openMail(eleveId, type){
   document.getElementById('mail-preview-text').dataset.type = type;
   document.getElementById('copy-confirm').classList.remove('show');
   openModal('modal-mail');
+}
+
+function copyEmail(){
+  const email = document.getElementById('mail-dest-email').textContent;
+  if(!email || email === '—') return;
+  navigator.clipboard.writeText(email).then(() => {
+    const c = document.getElementById('copy-email-confirm');
+    c.classList.add('show');
+    setTimeout(() => c.classList.remove('show'), 1500);
+  });
 }
 
 function copyMail(){
